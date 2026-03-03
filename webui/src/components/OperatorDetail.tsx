@@ -8,6 +8,7 @@ import {
   HStack,
   Spacer,
 } from '@chakra-ui/react';
+
 import { getCurrentMaxMetric, transformMetricGroup } from '../lib/util';
 import React from 'react';
 import { TimeSeriesGraph } from './TimeSeriesGraph';
@@ -98,32 +99,34 @@ const OperatorDetail: React.FC<OperatorDetailProps> = ({ pipelineId, jobId, node
   );
 
   return (
-    <Box className="operatorDetail" marginTop={10} padding="10px" border="1px solid #333">
-      <HStack fontWeight="semibold">
-        <Box>operator</Box>
+    <Box
+      className="operatorDetail"
+      marginTop={6}
+      padding="16px"
+      border="1px solid"
+      borderColor="gray.700"
+      borderRadius="xl"
+      bg="#1A1D24"
+    >
+      <HStack fontWeight="600" fontSize="sm">
+        <Box color="gray.200">Operator</Box>
         <Spacer />
-        <Box border="1px solid #aaa" px={1.5} fontSize={12} title="parallelism for this operator">
-          {node?.parallelism}
-        </Box>
+        <Badge variant="subtle" colorScheme="gray" fontSize="xs" title="parallelism for this operator">
+          ×{node?.parallelism}
+        </Badge>
       </HStack>
-      <Box marginTop="10px">Backpressure: {backpressureBadge}</Box>
-      <Box marginTop="10px">
-        <Box
-          display={'inline-block'}
-          border={'1px solid #aaa'}
-          px={1.5}
-          fontSize={12}
-          rounded={'full'}
-          mr={2}
-          title={'ID of this node'}
-        >
-          {node?.node_id}
-        </Box>
-        {node?.description}
+      <Box marginTop="12px" fontSize="sm">Backpressure: {backpressureBadge}</Box>
+      <Box marginTop="12px" fontSize="sm">
+        <Badge variant="outline" colorScheme="gray" fontSize="xs" mr={2} title={'ID of this node'}>
+          #{node?.node_id}
+        </Badge>
+        <Box as="span" color="gray.300">{node?.description}</Box>
       </Box>
-      <Box marginTop="10px" fontFamily="monaco,ubuntu mono,fixed-width">
-        <Code>{Math.round(msgRecv)} eps</Code> rx
-        <Code marginLeft="20px">{Math.round(msgSent)} eps</Code> tx
+      <Box marginTop="12px" fontFamily="'IBM Plex Mono', monospace" fontSize="xs">
+        <Code bg="whiteAlpha.100" color="green.300" px={2} py={0.5} borderRadius="md">{Math.round(msgRecv)} eps</Code>
+        <Box as="span" color="gray.500" mx={1}>rx</Box>
+        <Code bg="whiteAlpha.100" color="blue.300" px={2} py={0.5} borderRadius="md" ml={2}>{Math.round(msgSent)} eps</Code>
+        <Box as="span" color="gray.500" mx={1}>tx</Box>
       </Box>
       {eventsReceivedGraph}
       {eventsSentGraph}

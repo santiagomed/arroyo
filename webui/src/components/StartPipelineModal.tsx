@@ -49,45 +49,57 @@ const StartPipelineModal: React.FC<StartPipelineModalProps> = ({
         <ModalHeader>Start Pipeline</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <Stack spacing={8}>
+          <Stack spacing={6}>
             {startError ? (
-              <Alert status="error">
+              <Alert status="error" borderRadius="lg">
                 <AlertIcon />
-                <AlertDescription overflowY={'auto'} maxH={400} whiteSpace={'pre-wrap'}>
+                <AlertDescription overflowY={'auto'} maxH={400} whiteSpace={'pre-wrap'} fontSize="sm">
                   {startError}
                 </AlertDescription>
               </Alert>
             ) : null}
 
             <FormControl>
-              <FormLabel>Name</FormLabel>
+              <FormLabel fontSize="sm" fontWeight="500" color="gray.300">Name</FormLabel>
               <Input
                 type="text"
                 value={options.name || ''}
                 onChange={v => setOptions({ ...options, name: v.target.value })}
+                bg="whiteAlpha.50"
+                border="1px solid"
+                borderColor="gray.700"
+                borderRadius="lg"
+                _hover={{ borderColor: 'gray.600' }}
+                _focus={{ borderColor: 'brand.400', boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)' }}
               />
-              <FormHelperText>Give this pipeline a name to help you identify it</FormHelperText>
+              <FormHelperText color="gray.500" fontSize="xs">Give this pipeline a name to help you identify it</FormHelperText>
             </FormControl>
 
             <FormControl>
-              <FormLabel>Parallelism</FormLabel>
+              <FormLabel fontSize="sm" fontWeight="500" color="gray.300">Parallelism</FormLabel>
               <Box>
                 <NumberInput
                   step={1}
                   min={1}
                   max={1024}
-                  bg={'gray.800'}
                   value={options.parallelism || 1}
                   onChange={v => setOptions({ ...options, parallelism: Number(v) })}
                 >
-                  <NumberInputField />
+                  <NumberInputField
+                    bg="whiteAlpha.50"
+                    border="1px solid"
+                    borderColor="gray.700"
+                    borderRadius="lg"
+                    _hover={{ borderColor: 'gray.600' }}
+                    _focus={{ borderColor: 'brand.400', boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)' }}
+                  />
                   <NumberInputStepper>
-                    <NumberIncrementStepper />
-                    <NumberDecrementStepper />
+                    <NumberIncrementStepper borderColor="gray.700" />
+                    <NumberDecrementStepper borderColor="gray.700" />
                   </NumberInputStepper>
                 </NumberInput>
               </Box>
-              <FormHelperText>
+              <FormHelperText color="gray.500" fontSize="xs">
                 How many parallel subtasks should be used for this pipeline
               </FormHelperText>
             </FormControl>
@@ -95,7 +107,7 @@ const StartPipelineModal: React.FC<StartPipelineModalProps> = ({
         </ModalBody>
 
         <ModalFooter>
-          <Button mr={3} onClick={onClose}>
+          <Button mr={3} onClick={onClose} variant="ghost">
             Cancel
           </Button>
           <Button

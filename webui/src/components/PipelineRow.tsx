@@ -1,6 +1,6 @@
 import React from 'react';
 import { Job, Pipeline, usePipelineJobs } from '../lib/data_fetching';
-import { Flex, IconButton, Link, Td, Tr, Text } from '@chakra-ui/react';
+import { Badge, Flex, IconButton, Link, Td, Tr, Text } from '@chakra-ui/react';
 import { formatDate, relativeTime } from '../lib/util';
 import { FiCopy, FiXCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -15,17 +15,17 @@ const Indicator: React.FC<IndicatorProps> = ({ content, label, color }) => {
   return (
     <Flex direction={'column'} justifyContent={'center'} flex={'0 0 100px'}>
       <Text
-        as="b"
-        fontSize="lg"
+        fontWeight="500"
+        fontSize="sm"
         textOverflow={'ellipsis'}
         whiteSpace={'normal'}
         wordBreak={'break-all'}
         noOfLines={1}
-        color={color}
+        color={color || 'gray.100'}
       >
         {content}
       </Text>
-      {label && <Text fontSize="xs">{label}</Text>}
+      {label && <Text fontSize="xs" color="gray.500" mt={0.5}>{label}</Text>}
     </Flex>
   );
 };
@@ -44,16 +44,21 @@ const jobDuration = (job: Job) => {
   }
 };
 
-function stateColor(state: string): string {
+function stateColorScheme(state: string): string {
   switch (state) {
     case 'Running':
-      return 'green.300';
+      return 'green';
     case 'Failed':
-      return 'red.300';
+      return 'red';
     case 'Stopping':
-      return 'orange.300';
+      return 'orange';
+    case 'Checkpointing':
+    case 'Compacting':
+      return 'blue';
+    case 'Finished':
+      return 'cyan';
   }
-  return 'gray.400';
+  return 'gray';
 }
 
 function formatDuration(micros: number): string {
@@ -107,7 +112,13 @@ const PipelineRow: React.FC<PipelineRowProps> = ({
         />
       </Td>
       <Td key={'state'}>
-        <Indicator content={job?.state} color={stateColor(job?.state)} />
+        {job?.state ? (
+          <Badge colorScheme={stateColorScheme(job?.state)} variant="subtle" px={2.5} py={0.5} borderRadius="full" fontSize="xs">
+            {job?.state}
+          </Badge>
+        ) : (
+          <Text color="gray.500" fontSize="sm">—</Text>
+        )}
       </Td>
       <Td>
         <Indicator content={job ? formatDuration(jobDuration(job)) : undefined} />

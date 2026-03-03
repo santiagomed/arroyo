@@ -1,8 +1,8 @@
 import './App.css';
 import {
+  Box,
   Button,
   ButtonProps,
-  Divider,
   Flex,
   Grid,
   GridItem,
@@ -11,6 +11,7 @@ import {
   IconButton,
   Stack,
   Text,
+  Tooltip,
 } from '@chakra-ui/react';
 
 import { Link, Outlet, useLinkClickHandler, useMatch } from 'react-router-dom';
@@ -23,7 +24,6 @@ import React, { ReactNode, createContext, useContext, useState } from 'react';
 import { getTourContextValue, TourContext } from './tour';
 import { getLocalUdfsContextValue, LocalUdfsContext } from './udf_state';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { motion } from 'framer-motion';
 import useLocalStorage from 'use-local-storage';
 import { IconType } from 'react-icons';
 
@@ -48,22 +48,64 @@ export const NavButton = (props: NavButtonProps) => {
 
   let onClick = props.to ? useLinkClickHandler(props.to) : props.onClick;
 
-  return (
+  const button = (
     <Button
       variant="ghost"
       justifyContent="start"
+      width="full"
+      position="relative"
       /* @ts-ignore */
       onClick={onClick}
       aria-current={isActive ? 'page' : 'false'}
       title={label}
+      borderRadius="lg"
+      py={2.5}
+      px={collapsed ? 2.5 : 3}
+      bg={isActive ? 'whiteAlpha.100' : 'transparent'}
+      color={isActive ? 'white' : 'gray.400'}
+      _hover={{
+        bg: 'whiteAlpha.100',
+        color: 'white',
+      }}
       {...buttonProps}
     >
-      <HStack spacing="3">
-        <Icon as={icon} boxSize="4" color="subtle" />
-        {!collapsed && <Text fontSize="sm">{label}</Text>}
+      {isActive && (
+        <Box
+          position="absolute"
+          left={0}
+          top="50%"
+          transform="translateY(-50%)"
+          w="3px"
+          h="60%"
+          bg="brand.400"
+          borderRadius="full"
+        />
+      )}
+      <HStack spacing="3" justify={collapsed ? 'center' : 'start'} w="full">
+        <Icon
+          as={icon}
+          boxSize="5"
+          color={isActive ? 'brand.400' : 'gray.400'}
+          transition="color 0.15s ease"
+        />
+        {!collapsed && (
+          <Text fontSize="sm" fontWeight={isActive ? '600' : '400'} whiteSpace="nowrap">
+            {label}
+          </Text>
+        )}
       </HStack>
     </Button>
   );
+
+  if (collapsed) {
+    return (
+      <Tooltip label={label} placement="right" hasArrow openDelay={200}>
+        {button}
+      </Tooltip>
+    );
+  }
+
+  return button;
 };
 
 const Sidebar = ({
@@ -76,24 +118,25 @@ const Sidebar = ({
   const { menuItems } = useNavbar();
 
   return (
-    <GridItem className="sidebar" area={'nav'} as={motion.div} layout>
-      <Flex as="section" minH="100vh" bg="bg-canvas">
+    <GridItem className="sidebar" area={'nav'} overflow="hidden">
+      <Flex as="section" minH="100vh">
         <Flex
           flex="1"
-          bg="bg-surface"
-          boxShadow="sm-dark"
+          bg="#12141A"
+          borderRight="1px solid"
+          borderColor="gray.800"
           maxW={'xs'}
           py={4}
-          px={4}
+          px={3}
           justify={'center'}
+          overflow="hidden"
         >
           <Stack justify="space-between" spacing="1" width="full">
-            <Stack spacing="4" shouldWrapChildren>
-              <Flex justify={'center'}>
+            <Stack spacing="5" shouldWrapChildren>
+              <Flex justify={'center'} py={1}>
                 <Link to={'/'}>
-                  <motion.img
-                    layout
-                    style={{ height: 35 }}
+                  <img
+                    style={{ height: 32 }}
                     src={
                       window.__ARROYO_BASENAME +
                       (collapsed ? '/assets/icon.svg' : '/assets/logo.svg')
@@ -116,11 +159,11 @@ const Sidebar = ({
                   collapsed={collapsed}
                 />
               </Stack>
-              <Divider />
+              <Box h="1px" bg="gray.800" mx={-1} />
               <Stack>
                 <CloudSidebar />
               </Stack>
-              <Stack>
+              <Stack spacing="1">
                 {menuItems.map(item => (
                   <NavButton
                     key={item.label}
@@ -134,15 +177,20 @@ const Sidebar = ({
               </Stack>
             </Stack>
             <Stack display={'none'}>
-              <Divider />
+              <Box h="1px" bg="gray.800" />
               <UserProfile />
             </Stack>
-            <Flex justify={'right'}>
+            <Flex justify={'center'}>
               <IconButton
                 aria-label="collapse sidebar"
                 onClick={() => setCollapsed(!collapsed)}
+                variant="ghost"
+                size="sm"
+                borderRadius="full"
+                color="gray.500"
+                _hover={{ bg: 'whiteAlpha.100', color: 'gray.200' }}
                 icon={
-                  collapsed ? <ChevronRightIcon boxSize={6} /> : <ChevronLeftIcon boxSize={6} />
+                  collapsed ? <ChevronRightIcon boxSize={5} /> : <ChevronLeftIcon boxSize={5} />
                 }
               />
             </Flex>
@@ -190,7 +238,7 @@ function App() {
   const [collapsed, setCollapsed] = useLocalStorage('sidebar-collapse', false);
 
   let content = (
-    <GridItem className="main" area={'main'} overflow={'auto'}>
+    <GridItem className="main" area={'main'} overflow={'auto'} bg="#0D0F14">
       {<Outlet />}
     </GridItem>
   );
@@ -209,8 +257,14 @@ function App() {
         <NavbarProvider>
           <Grid
             templateAreas={'"nav main"'}
-            gridTemplateColumns={`${collapsed ? '80px' : '175px'}`}
+            gridTemplateColumns={`${collapsed ? '80px' : '175px'} 1fr`}
             h="100vh"
+            transition="grid-template-columns 0.2s ease"
+            sx={{
+              '& > *': {
+                transition: 'all 0.2s ease',
+              },
+            }}
           >
             <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
             {content}

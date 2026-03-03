@@ -23,12 +23,12 @@ const WelcomeModal: React.FC = () => {
       size={'xl'}
       variant={'tour'}
     >
-      <ModalOverlay />
-      <ModalContent padding={8}>
+      <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
+      <ModalContent padding={8} borderRadius="2xl">
         <ModalCloseButton onClick={disableTour} />
         <ModalBody display={'flex'} gap={6} flexDirection={'column'} alignItems={'center'}>
-          <img width="180" src={`${window.__ARROYO_BASENAME}/assets/logo.svg`} />
-          <Text fontSize={'md'}>
+          <img width="160" src={`${window.__ARROYO_BASENAME}/assets/logo.svg`} />
+          <Text fontSize={'md'} textAlign="center" lineHeight="tall">
             Welcome! Arroyo is a distributed stream processing engine, designed to efficiently
             perform stateful computations on streams of data.
             <br />
@@ -39,14 +39,20 @@ const WelcomeModal: React.FC = () => {
         <ModalFooter
           display={'flex'}
           flexDirection={'column'}
-          gap={'5px'}
+          gap={3}
           justifyContent={'center'}
+          border="none"
         >
-          <Button colorScheme={'blue'} onClick={() => setTourStep(TourSteps.CreatePipelineButton)}>
+          <Button
+            colorScheme={'blue'}
+            onClick={() => setTourStep(TourSteps.CreatePipelineButton)}
+            borderRadius="lg"
+            px={8}
+          >
             Let's do it!
           </Button>
           <Link>
-            <Text fontSize={'sm'} color={'grey.200'} onClick={disableTour}>
+            <Text fontSize={'sm'} color={'gray.500'} onClick={disableTour} _hover={{ color: 'gray.400' }}>
               No thanks
             </Text>
           </Link>

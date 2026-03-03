@@ -8,7 +8,13 @@ export interface LoadingProps {
 const Loading: React.FC<LoadingProps> = ({ size = 'xl' }) => {
   return (
     <Flex justify={'center'} alignItems={'center'} height={'75%'} p={8}>
-      <Spinner speed="0.65s" emptyColor="gray.200" color="blue.900" size={size} />
+      <Spinner
+        speed="0.8s"
+        emptyColor="whiteAlpha.100"
+        color="brand.400"
+        size={size}
+        thickness="3px"
+      />
     </Flex>
   );
 };

@@ -5,6 +5,7 @@ import {
   HStack,
   Button,
   Box,
+  Flex,
   useColorModeValue,
   IconButton,
   Table,
@@ -181,54 +182,50 @@ export function Connections() {
 
   const table = (
     <Box
-      bg="bg-surface"
-      boxShadow={{ base: 'none', md: useColorModeValue('sm', 'sm-dark') }}
-      borderRadius="lg"
+      bg="#1A1D24"
+      border="1px solid"
+      borderColor="gray.800"
+      borderRadius="xl"
+      overflow="hidden"
     >
-      <Stack spacing={{ base: '5', lg: '6' }}>
-        <Stack spacing={2}>
-          {configModal}
-          {messageBox}
-          <Table>
-            {tableHeader}
-            {tableBody}
-          </Table>
-        </Stack>{' '}
+      <Stack spacing={0}>
+        {configModal}
+        {messageBox}
+        <Table>
+          {tableHeader}
+          {tableBody}
+        </Table>
       </Stack>
     </Box>
   );
 
   return (
-    <Container py="8" flex="1">
+    <Container py="8" flex="1" maxW="container.xl">
       <Stack
         spacing={{
           base: '8',
           lg: '6',
         }}
       >
-        <Stack
-          spacing="4"
-          direction={{
-            base: 'column',
-            lg: 'row',
-          }}
+        <Flex
+          direction={{ base: 'column', lg: 'row' }}
           justify="space-between"
-          align={{
-            base: 'start',
-            lg: 'center',
-          }}
+          align={{ base: 'start', lg: 'center' }}
         >
           <Stack spacing="1">
-            <Heading size="sm" fontWeight="medium">
+            <Heading size="md" fontWeight="600" color="white">
               Connections
             </Heading>
+            <Text fontSize="sm" color="gray.400">
+              Manage your data source and sink connections
+            </Text>
           </Stack>
-          <HStack spacing="3">
+          <HStack spacing="3" mt={{ base: 4, lg: 0 }}>
             <Button variant="primary" onClick={() => navigate('/connections/new')}>
               Create Connection
             </Button>
           </HStack>
-        </Stack>
+        </Flex>
         <PaginatedContent
           pages={connectionTablePages}
           loading={connectionTablesLoading}

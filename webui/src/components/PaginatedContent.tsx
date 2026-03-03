@@ -43,18 +43,26 @@ const PaginatedContent: React.FC<PaginatedContentProps> = ({
   let pageButtons = <></>;
   if (currentPage.hasMore || pages.length > 1) {
     pageButtons = (
-      <Flex justifyContent={'center'} gap={'5px'}>
+      <Flex justifyContent={'center'} gap={'8px'} alignItems="center">
         <IconButton
           aria-label="Previous page"
           icon={<ArrowBackIcon />}
           isDisabled={pageNum === 1}
           onClick={() => setPageNum(pageNum - 1)}
+          variant="ghost"
+          size="sm"
+          borderRadius="lg"
+          _hover={{ bg: 'whiteAlpha.100' }}
         />
         <IconButton
           aria-label="Next Page"
           icon={<ArrowForwardIcon />}
           isDisabled={!currentPage.hasMore}
           onClick={() => setPageNum(pageNum + 1)}
+          variant="ghost"
+          size="sm"
+          borderRadius="lg"
+          _hover={{ bg: 'whiteAlpha.100' }}
         />
       </Flex>
     );

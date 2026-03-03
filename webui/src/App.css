@@ -1,8 +1,18 @@
 a {
-  text-decoration: underline !important;
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: #4da6ff;
 }
 
 dfn {
   text-decoration: underline dotted !important;
   font-style: normal;
+}
+
+/* Smooth transitions globally */
+button, a, input, select, textarea {
+  transition: all 0.2s ease;
 }

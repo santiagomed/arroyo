@@ -305,20 +305,47 @@ export function PipelineDetails() {
     }
   }
 
+  function stateColorScheme(state: string): string {
+    switch (state) {
+      case 'Running': return 'green';
+      case 'Failed': return 'red';
+      case 'Stopping': return 'orange';
+      case 'Checkpointing':
+      case 'Compacting': return 'blue';
+      case 'Finished': return 'cyan';
+    }
+    return 'gray';
+  }
+
   const headerArea = (
-    <Flex>
-      <Box p={5}>
-        <Heading as="h4" size="md">
-          {pipeline?.name} <Badge>{job?.state}</Badge>
+    <Flex
+      align="center"
+      px={6}
+      py={4}
+      borderBottom="1px solid"
+      borderColor="gray.800"
+      bg="#12141A"
+    >
+      <Flex align="center" gap={3}>
+        <Heading as="h4" size="md" fontWeight="600" color="white">
+          {pipeline?.name}
         </Heading>
-      </Box>
+        <Badge
+          colorScheme={stateColorScheme(job?.state)}
+          variant="subtle"
+          px={2.5}
+          py={0.5}
+          borderRadius="full"
+          fontSize="xs"
+        >
+          {job?.state}
+        </Badge>
+      </Flex>
       <Spacer />
-      <Box p={5}>
-        <ButtonGroup>
-          {editPipelineButton}
-          {actionButton}
-        </ButtonGroup>
-      </Box>
+      <ButtonGroup size="sm" spacing={2}>
+        {editPipelineButton}
+        {actionButton}
+      </ButtonGroup>
     </Flex>
   );
 

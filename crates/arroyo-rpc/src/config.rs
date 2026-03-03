@@ -555,6 +555,21 @@ pub struct DatabaseConfig {
     pub sqlite: SqliteConfig,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PostgresSslMode {
+    /// No TLS (default, backward compatible)
+    Disable,
+    /// TLS required, server certificate is not verified
+    Require,
+}
+
+impl Default for PostgresSslMode {
+    fn default() -> Self {
+        Self::Disable
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct PostgresConfig {
@@ -563,6 +578,10 @@ pub struct PostgresConfig {
     pub port: u16,
     pub user: String,
     pub password: Sensitive<String>,
+    /// SSL mode for the Postgres connection. Default: disable (no TLS).
+    /// Set to "require" for TLS without certificate verification.
+    #[serde(default)]
+    pub ssl_mode: PostgresSslMode,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

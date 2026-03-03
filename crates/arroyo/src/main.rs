@@ -2,7 +2,7 @@ mod run;
 
 use anyhow::{anyhow, bail};
 use arroyo_planner::{ArroyoSchemaProvider, SqlConfig};
-use arroyo_rpc::config::{DatabaseType, config};
+use arroyo_rpc::config::{DatabaseType, PostgresSslMode, config};
 use arroyo_rpc::{config, log_event};
 use arroyo_server_common::shutdown::{Shutdown, SignalBehavior};
 use arroyo_server_common::start_admin_server;
@@ -17,9 +17,9 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{env, fs};
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::timeout;
-use tokio_postgres::{Client, Connection, NoTls};
+use tokio_postgres::{Client, NoTls};
+use tokio_postgres_rustls::MakeRustlsConnect;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -188,6 +188,60 @@ async fn main() {
     };
 }
 
+/// Creates a rustls TLS connector for Postgres that does not verify
+/// the server certificate. This is equivalent to sslmode=require in libpq:
+/// the connection is encrypted, but the server identity is not verified.
+/// This is necessary for CNPG clusters that use self-signed CAs.
+fn make_pg_tls_connector() -> MakeRustlsConnect {
+    let tls_config = rustls::ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoServerCertVerifier))
+        .with_no_client_auth();
+    MakeRustlsConnect::new(tls_config)
+}
+
+/// A certificate verifier that accepts any server certificate.
+/// Used for sslmode=require (encrypt but don't verify).
+#[derive(Debug)]
+struct NoServerCertVerifier;
+
+impl rustls::client::danger::ServerCertVerifier for NoServerCertVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::aws_lc_rs::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
+}
+
 async fn pg_pool() -> Pool {
     let config = &config().database.postgres;
     let mut cfg = deadpool_postgres::Config::new();
@@ -199,12 +253,23 @@ async fn pg_pool() -> Pool {
     cfg.manager = Some(ManagerConfig {
         recycling_method: RecyclingMethod::Fast,
     });
-    let pool = cfg
-        .create_pool(Some(deadpool_postgres::Runtime::Tokio1), NoTls)
-        .unwrap_or_else(|e| {
-            error!("Unable to connect to database {:?}: {:?}", config, e);
-            exit(1);
-        });
+    let pool = match config.ssl_mode {
+        PostgresSslMode::Require => cfg
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                make_pg_tls_connector(),
+            )
+            .unwrap_or_else(|e| {
+                error!("Unable to connect to database {:?}: {:?}", config, e);
+                exit(1);
+            }),
+        PostgresSslMode::Disable => cfg
+            .create_pool(Some(deadpool_postgres::Runtime::Tokio1), NoTls)
+            .unwrap_or_else(|e| {
+                error!("Unable to connect to database {:?}: {:?}", config, e);
+                exit(1);
+            }),
+    };
 
     let object_manager = pool.get().await.unwrap_or_else(|e| {
         error!(
@@ -319,34 +384,59 @@ mod sqlite_migrations {
     embed_migrations!("../arroyo-api/sqlite_migrations");
 }
 
-async fn connect(
-    retry: bool,
-) -> anyhow::Result<(
-    Client,
-    Connection<impl AsyncRead + AsyncWrite + Unpin, impl AsyncRead + AsyncWrite + Unpin>,
-)> {
+/// Connects to Postgres and spawns the connection task.
+/// Returns the client ready for queries.
+async fn connect(retry: bool) -> anyhow::Result<Client> {
     let config = &config().database.postgres;
 
     loop {
-        match tokio_postgres::config::Config::new()
-            .host(&config.host)
-            .port(config.port)
-            .user(&config.user)
-            .password(&*config.password)
-            .dbname(&config.database_name)
-            .connect(NoTls)
-            .await
-        {
-            Ok(r) => {
-                return Ok(r);
+        let result = match config.ssl_mode {
+            PostgresSslMode::Require => {
+                let r = tokio_postgres::config::Config::new()
+                    .host(&config.host)
+                    .port(config.port)
+                    .user(&config.user)
+                    .password(&*config.password)
+                    .dbname(&config.database_name)
+                    .connect(make_pg_tls_connector())
+                    .await;
+                r.map(|(client, conn)| {
+                    tokio::spawn(async move {
+                        if let Err(e) = conn.await {
+                            eprintln!("connection error: {e}");
+                        }
+                    });
+                    client
+                })
             }
+            PostgresSslMode::Disable => {
+                let r = tokio_postgres::config::Config::new()
+                    .host(&config.host)
+                    .port(config.port)
+                    .user(&config.user)
+                    .password(&*config.password)
+                    .dbname(&config.database_name)
+                    .connect(NoTls)
+                    .await;
+                r.map(|(client, conn)| {
+                    tokio::spawn(async move {
+                        if let Err(e) = conn.await {
+                            eprintln!("connection error: {e}");
+                        }
+                    });
+                    client
+                })
+            }
+        };
+
+        match result {
+            Ok(client) => return Ok(client),
             Err(e) => {
                 if !e.to_string().contains("authentication") && retry {
                     debug!("Received error from database while waiting: {}", e);
                     tokio::time::sleep(Duration::from_millis(500)).await;
                     continue;
                 }
-
                 bail!("Failed to connect to database {:?}: {}", config, e);
             }
         }
@@ -356,7 +446,7 @@ async fn connect(
 async fn migrate(wait: Option<u32>) -> anyhow::Result<()> {
     let _guard = arroyo_server_common::init_logging("migrate");
 
-    let (mut client, connection) = if let Some(wait) = wait {
+    let mut client = if let Some(wait) = wait {
         info!("Waiting for database to be ready to run migrations");
         timeout(Duration::from_secs(wait as u64), connect(true))
             .await
@@ -364,12 +454,6 @@ async fn migrate(wait: Option<u32>) -> anyhow::Result<()> {
     } else {
         connect(false).await?
     };
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {e}");
-        }
-    });
 
     info!(
         "Running migrations on database {:?}",

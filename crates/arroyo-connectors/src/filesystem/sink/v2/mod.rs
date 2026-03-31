@@ -212,7 +212,7 @@ impl<BBW: BatchBufferingWriter> ActiveState<BBW> {
         context: &SinkContext,
         partition: &Option<OwnedRow>,
         representative_ts: SystemTime,
-    ) -> &mut OpenFile<BBW> {
+    ) -> DataflowResult<&mut OpenFile<BBW>> {
         let file = self
             .active_partitions
             .get(partition)
@@ -228,7 +228,7 @@ impl<BBW: BatchBufferingWriter> ActiveState<BBW> {
                 context.schema.clone(),
                 context.iceberg_schema.clone(),
                 logger.clone(),
-            );
+            )?;
 
             let open_file = OpenFile::new(
                 path.clone(),
@@ -247,7 +247,7 @@ impl<BBW: BatchBufferingWriter> ActiveState<BBW> {
         }
 
         let file_path = self.active_partitions.get(partition).unwrap();
-        self.open_files.get_mut(file_path).unwrap()
+        Ok(self.open_files.get_mut(file_path).unwrap())
     }
 }
 
@@ -277,7 +277,11 @@ impl UploadState {
         f: &mut OpenFile<BBW>,
     ) -> DataflowResult<bool> {
         Ok(
-            if f.is_writable() && policies.iter().any(|p| p.should_roll(&f.stats, watermark)) {
+            if f.is_writable()
+                && let Some(p) = policies.iter().find(|p| p.should_roll(&f.stats, watermark))
+            {
+                debug!(file = ?f.path, policy = ?p, message = "rolling file due to policy");
+
                 let futures = f.close()?;
 
                 let mut ps = self.pending_uploads.lock().await;
@@ -522,7 +526,7 @@ impl<BBW: BatchBufferingWriter + Send + 'static> ArrowOperator for FileSystemSin
                 self.context.as_ref().unwrap(),
                 &partition_key,
                 representative_timestamp,
-            );
+            )?;
             let future = file.add_batch(&sub_batch)?;
 
             if let Some(future) = future {
@@ -780,6 +784,10 @@ impl<BBW: BatchBufferingWriter + Send + 'static> ArrowOperator for FileSystemSin
                 futures.extend(file.handle_event(event.data)?);
             }
 
+            if !files.is_empty() {
+                maybe_cause_failure("commit_after_finalize");
+            }
+
             maybe_cause_failure("commit_middle");
 
             // Add finalized multipart files to finished_files
@@ -808,15 +816,13 @@ impl<BBW: BatchBufferingWriter + Send + 'static> ArrowOperator for FileSystemSin
                     )
                         .await
                         .map_err(
-                            |e| connector_err!(External, WithBackoff, source: e, "failed to commit to delta"),
+                            |e| connector_err!(External, WithBackoff, source: e, "failed to commit to delta: {e}"),
                         )? {
                         *last_version = new_version;
                     }
                 }
                 CommitState::Iceberg(table) => {
-                    table.commit(epoch, &finished_files).await.map_err(
-                        |e| connector_err!(External, WithBackoff, source: e, "failed to commit to iceberg"),
-                    )?;
+                    table.commit(epoch, &finished_files).await?;
                 }
                 CommitState::VanillaParquet => {
                     // Nothing to do
@@ -830,9 +836,9 @@ impl<BBW: BatchBufferingWriter + Send + 'static> ArrowOperator for FileSystemSin
         ctx.control_tx
             .send(arroyo_rpc::ControlResp::CheckpointEvent(CheckpointEvent {
                 checkpoint_epoch: epoch,
-                node_id: ctx.task_info.node_id,
+                operator_idx: ctx.task_info.operator_idx,
                 operator_id: ctx.task_info.operator_id.clone(),
-                subtask_index: ctx.task_info.task_index,
+                subtask_idx: ctx.task_info.task_index,
                 time: SystemTime::now(),
                 event_type: arroyo_rpc::grpc::rpc::TaskCheckpointEventType::FinishedCommit,
             }))
